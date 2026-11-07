@@ -1,0 +1,10 @@
+# EmulatorJS 官方运行时（~105MB，wasm 模拟核心），首次运行 scripts/setup-data.sh 下载
+data/
+
+# ROM 库：各平台目录自动创建，仅白名单收录可自由分发的 homebrew ROM
+roms/*
+!roms/gba/
+roms/gba/*
+!roms/gba/240p测试套件.gba
+
+.DS_Store

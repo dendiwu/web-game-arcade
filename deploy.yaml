@@ -1,0 +1,5 @@
+name: gba-emulator
+port: auto
+start: "env PORT={{PORT}} python3 server.py"
+health: /health
+auto_restart: true

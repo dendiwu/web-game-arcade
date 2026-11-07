@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>网页游戏厅</title>
+<style>
+  :root {
+    --bg: #0b0e14; --panel: #141926; --panel2: #1b2233;
+    --text: #e6e9f0; --muted: #8a93a8; --accent: #6c8cff; --accent2: #4a6ae0;
+    --danger: #e05c6c; --ok: #4cc38a; --radius: 12px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: -apple-system, "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
+    min-height: 100vh;
+  }
+  .wrap { max-width: 960px; margin: 0 auto; padding: 24px 16px 60px; }
+
+  /* ---------- 库视图 ---------- */
+  header { display: flex; align-items: center; gap: 14px; margin-bottom: 22px; }
+  .logo {
+    width: 44px; height: 44px; border-radius: 10px; flex: none;
+    background: linear-gradient(135deg, #6c8cff, #a86cff);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px;
+  }
+  header h1 { font-size: 20px; font-weight: 700; }
+  header p { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+  #uploadBox { background: var(--panel); border-radius: var(--radius); padding: 16px; margin-bottom: 20px; }
+  .uploadRow { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  #dropzone {
+    flex: 1; min-width: 220px;
+    border: 2px dashed #364063; border-radius: 10px;
+    padding: 18px 14px; text-align: center;
+    cursor: pointer; transition: all .15s;
+  }
+  #dropzone:hover, #dropzone.drag { border-color: var(--accent); }
+  #dropzone .big { font-size: 14px; margin-bottom: 4px; }
+  #dropzone .small { font-size: 12px; color: var(--muted); }
+  select {
+    background: var(--panel2); color: var(--text); border: 1px solid #364063;
+    border-radius: 8px; padding: 10px 12px; font-size: 13px; font-family: inherit;
+  }
+  .uploadRow select { align-self: stretch; }
+  .extHint { font-size: 12px; color: var(--muted); margin-top: 10px; line-height: 1.7; }
+  .extHint code { color: var(--accent); }
+
+  #progress { display: none; margin: -8px 0 18px; font-size: 13px; color: var(--muted); }
+  #progress .bar { height: 6px; background: var(--panel2); border-radius: 4px; overflow: hidden; margin-top: 6px; }
+  #progress .bar i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .15s; }
+
+  .psection { margin-bottom: 26px; }
+  .phead { display: flex; align-items: baseline; gap: 10px; margin-bottom: 12px; }
+  .phead h2 { font-size: 15px; color: var(--text); font-weight: 700; }
+  .phead .count { font-size: 12px; color: var(--muted); }
+  .phead .phint { font-size: 12px; color: var(--muted); margin-left: auto; }
+
+  #grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; }
+  .card {
+    background: var(--panel); border-radius: var(--radius); padding: 14px 16px;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .card .name { font-size: 14px; font-weight: 600; word-break: break-all; line-height: 1.4; }
+  .card .meta { font-size: 12px; color: var(--muted); }
+  .card .row { display: flex; gap: 8px; margin-top: 2px; }
+  button {
+    border: none; border-radius: 8px; padding: 8px 14px; font-size: 13px;
+    cursor: pointer; font-family: inherit; transition: filter .1s;
+  }
+  button:hover { filter: brightness(1.15); }
+  .btn-play { background: var(--accent2); color: #fff; flex: 1; }
+  .btn-del { background: transparent; color: var(--danger); border: 1px solid #3a2830; }
+  #empty { color: var(--muted); font-size: 13px; padding: 30px 0; text-align: center; }
+
+  details.help {
+    margin-top: 28px; background: var(--panel); border-radius: var(--radius);
+    padding: 14px 16px; font-size: 13px; color: var(--muted); line-height: 1.9;
+  }
+  details.help summary { cursor: pointer; color: var(--text); font-weight: 600; font-size: 14px; }
+  details.help b { color: var(--accent); font-weight: 600; }
+
+  /* ---------- 播放器视图 ---------- */
+  #playerView { display: none; }
+  .ptop { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+  .ptop .back { background: var(--panel); color: var(--text); padding: 8px 14px; font-size: 13px; }
+  .ptop .title { font-size: 15px; font-weight: 600; word-break: break-all; }
+  .ptop .hint { font-size: 12px; color: var(--muted); margin-left: auto; }
+  #game {
+    width: 100%; max-width: 960px; margin: 0 auto;
+    background: #000; border-radius: var(--radius); overflow: hidden;
+  }
+  #game canvas { image-rendering: pixelated; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- 游戏库 -->
+  <div id="libView">
+    <header>
+      <div class="logo">🕹️</div>
+      <div>
+        <h1>网页游戏厅</h1>
+        <p>FC / SFC / GB / GBA / MD / N64 / NDS / PS1 / PSP / 街机 · 浏览器直接玩</p>
+      </div>
+    </header>
+
+    <div id="uploadBox">
+      <div class="uploadRow">
+        <div id="dropzone">
+          <div class="big">点击选择，或把游戏文件拖到这里</div>
+          <div class="small">按扩展名自动识别平台，也可手动指定</div>
+          <input type="file" id="fileInput" multiple hidden>
+        </div>
+        <select id="platformSel">
+          <option value="auto">自动识别</option>
+          <option value="nes">FC 红白机</option>
+          <option value="snes">SFC 超任</option>
+          <option value="gb">GB/GBC</option>
+          <option value="gba">GBA</option>
+          <option value="segaMD">世嘉 MD</option>
+          <option value="n64">N64</option>
+          <option value="nds">NDS</option>
+          <option value="psx">PS1</option>
+          <option value="psp">PSP</option>
+          <option value="arcade">街机</option>
+        </select>
+      </div>
+      <div class="extHint">
+        支持格式：<code>.nes .fds</code> FC · <code>.sfc .smc</code> SFC · <code>.gb .gbc</code> GB · <code>.gba</code> GBA ·
+        <code>.md .gen</code> MD · <code>.n64 .z64 .v64</code> N64 · <code>.nds</code> NDS ·
+        <code>.chd .cue .pbp</code> PS1 · <code>.iso .cso</code> PSP · <code>.zip</code> 压缩包（平台手动选）<br>
+        PS1 多文件游戏（.cue+.bin）请打包成一个 zip 再传
+      </div>
+    </div>
+    <div id="progress">
+      <span id="ptext"></span>
+      <div class="bar"><i id="pbar"></i></div>
+    </div>
+
+    <div id="sections"></div>
+    <div id="empty">还没有游戏，先上传一个 ROM 吧</div>
+
+    <details class="help">
+      <summary>使用说明</summary>
+      · 运行游戏后，点画面下方工具条（☰ 菜单）可以随时<b>存档 / 读档</b>、重置、快进、按键设置、金手指、虚拟手柄<br>
+      · 存档和电池存档（.sav）保存在<b>这台浏览器</b>里，下次打开同一游戏可直接继续；清浏览器数据或换设备会丢，重要进度自己留意<br>
+      · 键盘默认：<b>方向键 = 十字键，X = A 键，Z = B 键</b>，A/S = L/R，回车 = Start，右Shift = Select（可在菜单里改）<br>
+      · 支持蓝牙 / USB 手柄；手机浏览器会显示虚拟按键<br>
+      · N64 / PSP / NDS 对设备性能要求较高，手机上卡顿属正常，电脑浏览器体验最好<br>
+      · ROM 文件请不要用于商业用途，请在合法前提下使用自己拥有的游戏卡带备份
+    </details>
+  </div>
+
+  <!-- 播放器 -->
+  <div id="playerView">
+    <div class="ptop">
+      <button class="back" id="backBtn">‹ 返回游戏厅</button>
+      <span class="title" id="ptitle"></span>
+      <span class="hint">存档在 ☰ 菜单里</span>
+    </div>
+    <div id="game"></div>
+  </div>
+
+</div>
+<script>
+const $ = s => document.querySelector(s);
+const fmtSize = n => n >= 1048576 ? (n/1048576).toFixed(1)+' MB' : (n/1024).toFixed(0)+' KB';
+
+const PLATFORMS = {
+  nes:    {label:'FC 红白机', icon:'🎮'},
+  snes:   {label:'SFC 超任', icon:'🕹️'},
+  gb:     {label:'GB/GBC', icon:'🔋'},
+  gba:    {label:'GBA', icon:'👾'},
+  segaMD: {label:'世嘉 MD', icon:'💙'},
+  n64:    {label:'N64', icon:'🌟'},
+  nds:    {label:'NDS', icon:'✏️'},
+  psx:    {label:'PS1', icon:'💿'},
+  psp:    {label:'PSP', icon:'🎧'},
+  arcade: {label:'街机', icon:'🎲'},
+};
+/* 画面比例（播放器容器用） */
+const ASPECT = {
+  nes:'4/3', snes:'4/3', gb:'10/9', gba:'3/2', segaMD:'4/3',
+  n64:'4/3', nds:'4/3', psx:'4/3', psp:'16/9', arcade:'4/3',
+};
+/* 扩展名 → 平台自动识别 */
+const EXT2PLAT = {
+  nes:'nes', fds:'nes',
+  sfc:'snes', smc:'snes',
+  gb:'gb', gbc:'gb',
+  gba:'gba',
+  md:'segaMD', gen:'segaMD',
+  n64:'n64', z64:'n64', v64:'n64',
+  nds:'nds',
+  chd:'psx', cue:'psx', pbp:'psx', img:'psx', iso:'psx',
+  cso:'psp',
+};
+
+/* ---------- 游戏库 ---------- */
+async function loadRoms() {
+  const r = await fetch('/api/roms');
+  const d = await r.json();
+  const sections = $('#sections'), empty = $('#empty');
+  sections.innerHTML = '';
+  const byPlat = {};
+  for (const rom of d.roms) (byPlat[rom.platform] = byPlat[rom.platform] || []).push(rom);
+  // PS1 多文件镜像：同名 cue/chd/iso/pbp 在时隐藏轨道文件（bin/img），避免一个游戏占两个卡片
+  if (byPlat.psx) {
+    const stem = n => n.replace(/\.[^.]+$/, '');
+    const mains = new Set(byPlat.psx.filter(r => /\.(cue|chd|iso|pbp)$/i.test(r.name)).map(r => stem(r.name)));
+    byPlat.psx = byPlat.psx.filter(r => !/\.(bin|img)$/i.test(r.name) || !mains.has(stem(r.name)));
+  }
+  const plats = Object.keys(PLATFORMS).filter(p => byPlat[p] && byPlat[p].length);
+  empty.style.display = plats.length ? 'none' : 'block';
+  for (const p of plats) {
+    const sec = document.createElement('div');
+    sec.className = 'psection';
+    const head = document.createElement('div');
+    head.className = 'phead';
+    head.innerHTML = `<h2>${PLATFORMS[p].icon} ${PLATFORMS[p].label}</h2><span class="count">${byPlat[p].length} 个游戏</span>`;
+    sec.appendChild(head);
+    const grid = document.createElement('div');
+    grid.id = 'grid';
+    for (const rom of byPlat[p]) {
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.innerHTML = `
+        <div class="name"></div>
+        <div class="meta"></div>
+        <div class="row">
+          <button class="btn-play">▶ 运行</button>
+          <button class="btn-del">删除</button>
+        </div>`;
+      card.querySelector('.name').textContent = rom.name;
+      card.querySelector('.meta').textContent = fmtSize(rom.size);
+      card.querySelector('.btn-play').onclick = () => {
+        location.href = '/?play=' + encodeURIComponent(rom.name) + '&platform=' + rom.platform;
+      };
+      card.querySelector('.btn-del').onclick = async () => {
+        if (!confirm('删除 ' + rom.name + ' ？（浏览器里的存档不受影响）')) return;
+        await fetch('/api/roms/' + encodeURIComponent(rom.platform) + '/' + encodeURIComponent(rom.name), { method: 'DELETE' });
+        loadRoms();
+      };
+      grid.appendChild(card);
+    }
+    sec.appendChild(grid);
+    sections.appendChild(sec);
+  }
+}
+
+/* 上传（带进度条，逐个传） */
+function uploadFiles(files) {
+  const manual = $('#platformSel').value;
+  const list = [];
+  for (const f of files) {
+    const ext = f.name.split('.').pop().toLowerCase();
+    const plat = manual !== 'auto' ? manual : EXT2PLAT[ext];
+    if (!plat) { alert(f.name + '：无法识别平台，请在右侧手动选择平台后再传'); continue; }
+    list.push({f, plat});
+  }
+  if (!list.length) return;
+  (async () => {
+    for (let i = 0; i < list.length; i++) {
+      const {f, plat} = list[i];
+      await new Promise(resolve => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', '/api/upload?platform=' + plat + '&name=' + encodeURIComponent(f.name));
+        xhr.upload.onprogress = e => {
+          $('#progress').style.display = 'block';
+          $('#ptext').textContent = `上传中 (${i+1}/${list.length}) → ${PLATFORMS[plat].label}：${f.name} — ${fmtSize(e.loaded)} / ${fmtSize(e.total)}`;
+          $('#pbar').style.width = (e.loaded / e.total * 100) + '%';
+        };
+        xhr.onload = () => {
+          if (xhr.status !== 200) alert('上传失败：' + (xhr.responseText || xhr.status));
+          resolve();
+        };
+        xhr.onerror = () => { alert('上传失败：网络错误'); resolve(); };
+        xhr.send(f);
+      });
+    }
+    $('#progress').style.display = 'none';
+    $('#platformSel').value = 'auto';
+    loadRoms();
+  })();
+}
+
+const dz = $('#dropzone'), fi = $('#fileInput');
+dz.onclick = () => fi.click();
+fi.onchange = () => { uploadFiles(fi.files); fi.value = ''; };
+document.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag'); });
+document.addEventListener('dragleave', e => { if (!e.relatedTarget) dz.classList.remove('drag'); });
+document.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('drag'); if (e.dataTransfer.files.length) uploadFiles(e.dataTransfer.files); });
+
+/* ---------- 播放器 ---------- */
+const params = new URLSearchParams(location.search);
+const play = params.get('play');
+const platform = params.get('platform');
+if (play && platform && PLATFORMS[platform]) {
+  $('#libView').style.display = 'none';
+  $('#playerView').style.display = 'block';
+  $('#ptitle').textContent = PLATFORMS[platform].label + ' · ' + play;
+  document.title = play + ' - 网页游戏厅';
+  $('#backBtn').onclick = () => location.href = '/';
+  $('#game').style.aspectRatio = ASPECT[platform] || '4/3';
+
+  window.EJS_player = '#game';
+  window.EJS_core = platform;
+  window.EJS_gameUrl = '/roms/' + encodeURIComponent(platform) + '/' + encodeURIComponent(play);
+  window.EJS_gameName = play.replace(/\.[^.]+$/, '');
+  window.EJS_pathtodata = '/data/';
+  window.EJS_language = 'zh-CN';
+  window.EJS_startOnLoaded = true;
+  window.EJS_backgroundColor = '#0b0e14';
+  window.EJS_defaultOptions = { 'save-state-location': 'browser' };
+  if (platform === 'psp') window.EJS_threads = true;   // ppsspp 内核需要 SharedArrayBuffer（服务端已发 COOP/COEP）
+
+  const s = document.createElement('script');
+  s.src = '/data/loader.js';
+  document.body.appendChild(s);
+} else {
+  loadRoms();
+}
+</script>
+</body>
+</html>
